@@ -28,7 +28,21 @@ if not DATABASE_URL:
 # -----------------------------
 # APP
 # -----------------------------
-app = FastAPI(title="FastAPI with JWT Auth and RAG")
+# app = FastAPI(title="FastAPI with JWT Auth and RAG")
+
+# 11-04-2026 - Initialize the FastAPI app
+app = FastAPI(
+
+    title="Python + FastApi + JWT Auth + LLM + Groq + RAG pipeline",
+    description="11-04-2026 - FastAPI with JWT Auth serving an RAG Application powered by one of Groq's LLaMA models",
+    version="0.0.1",
+
+    contact={
+        "name": "Per Olsen",
+        "url": "https://persteenolsen.netlify.app",
+         },
+)
+
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 client = Groq(api_key=GROQ_API_KEY)
