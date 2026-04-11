@@ -80,7 +80,7 @@ POST /api/ask
   "prompt": "What is this document about?"
 }
 
-# This RAG App for Demo and learning:
+# This RAG App is for Demo and learning:
 
 Big picture (important insight)
 
@@ -90,7 +90,7 @@ ingestion → chunking → embedding → vector DB → similarity search → con
 
 That is the entire RAG abstraction. Everything else (rerankers, hybrid search, better embeddings) is just refinement.
 
-Phase 1 - This Demo for learning have:
+Phase 1 - This Demo for learning has:
 
 - fake embeddings
 
@@ -100,7 +100,7 @@ Phase 1 - This Demo for learning have:
 
 - Vercel deployment
 
-# Improvements for a future production ready App
+# Improvements for a production ready App
 
 Phase 2 - For a future next step:
 
@@ -119,3 +119,9 @@ Phase 3 - For a future next step:
 - caching
 
 - observability
+
+Phase 4 - For a future next step:
+
+- Saving the password in a PostgreSQL as hashed valued - encrypted
+
+- Splitting the code of the app.py into folders ready for scale
