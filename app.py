@@ -10,6 +10,8 @@ import jwt
 import os
 import requests
 import datetime
+import httpx
+import asyncio
 
 # -----------------------------
 # ENV
@@ -21,28 +23,26 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 SECRET_KEY = os.getenv("SECRET_KEY")
 FAKE_USERNAME = os.getenv("FAKE_USERNAME")
 FAKE_PASSWORD = os.getenv("FAKE_PASSWORD")
+HF_TOKEN = os.getenv("HF_TOKEN")
 
 if not DATABASE_URL:
     raise Exception("Missing DATABASE_URL")
 
+if not HF_TOKEN:
+    raise Exception("Missing HF_TOKEN")
+
 # -----------------------------
 # APP
 # -----------------------------
-# app = FastAPI(title="FastAPI with JWT Auth and RAG")
-
-# 11-04-2026 - Initialize the FastAPI app
 app = FastAPI(
-
     title="Python + FastApi + JWT Auth + LLM + Groq + RAG pipeline",
-    description="11-04-2026 - FastAPI with JWT Auth serving an RAG Application powered by one of Groq's LLaMA models",
-    version="0.0.1",
-
+    description="FastAPI with JWT Auth serving an RAG Application powered by Groq + HuggingFace embeddings",
+    version="0.0.2",
     contact={
         "name": "Per Olsen",
         "url": "https://persteenolsen.netlify.app",
-         },
+    },
 )
-
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 client = Groq(api_key=GROQ_API_KEY)
@@ -75,9 +75,10 @@ class URLRequest(BaseModel):
 # -----------------------------
 # EMBEDDING CONFIG
 # -----------------------------
-# NOTE: fake embeddings for demo purposes only
-EMBED_MODEL = "mock-384"   # since you're still using fake embeddings
-EMBED_VERSION = 1
+HF_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction"
+
+EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+EMBED_VERSION = 2
 
 # -----------------------------
 # UTILS
@@ -86,15 +87,30 @@ def normalize(vec):
     v = np.array(vec)
     return (v / np.linalg.norm(v)).tolist()
 
+async def hf_embed(texts: list[str]) -> list[list[float]]:
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        response = await client.post(
+            HF_URL,
+            headers={
+                "Authorization": f"Bearer {HF_TOKEN}",
+                "Content-Type": "application/json",
+            },
+            json={"inputs": texts},
+        )
+        response.raise_for_status()
+        return response.json()
+
 def embed_batch(texts: list[str]) -> list[list[float]]:
-    # 🔥 Replace with actual Groq embedding model when available
-    # TEMP fallback (deterministic fake but stable)
-    vectors = []
-    for text in texts:
-        np.random.seed(abs(hash(text)) % (10**6))
-        vec = np.random.rand(384)
-        vectors.append(normalize(vec))
-    return vectors
+    """
+    Sync wrapper around async HF call
+    """
+    for attempt in range(3):
+        try:
+            vectors = asyncio.run(hf_embed(texts))
+            return [normalize(v) for v in vectors]
+        except Exception as e:
+            if attempt == 2:
+                raise e
 
 # -----------------------------
 # DB INIT
@@ -125,13 +141,33 @@ def init_db():
 # -----------------------------
 # CHUNKING
 # -----------------------------
-def chunk_txt(text: str, size=500, overlap=50):
+#def chunk_txt(text: str, size=500, overlap=50):
+#    chunks = []
+ #   i = 0
+ #   while i < len(text):
+#        chunk = text[i:i+size]
+#        chunks.append(chunk.strip())
+ #       i += size - overlap
+ #   return chunks
+
+def chunk_txt(text: str):
     chunks = []
-    i = 0
-    while i < len(text):
-        chunk = text[i:i+size]
-        chunks.append(chunk.strip())
-        i += size - overlap
+    current_chunk = []
+
+    for line in text.splitlines():
+        line = line.strip()
+
+        if line.startswith("Topic:"):
+            if current_chunk:
+                chunks.append(" ".join(current_chunk))
+                current_chunk = []
+
+        if line:
+            current_chunk.append(line)
+
+    if current_chunk:
+        chunks.append(" ".join(current_chunk))
+
     return chunks
 
 # -----------------------------
@@ -158,24 +194,29 @@ def fetch_txt_clean(url: str) -> str:
 # BACKGROUND WORKER
 # -----------------------------
 def process_chunks(chunks: list[str], source: str):
-    embeddings = embed_batch(chunks)
+    # Batch processing (important for speed)
+    batch_size = 32
 
     with engine.begin() as conn:
-        for chunk, vec in zip(chunks, embeddings):
-            conn.execute(
-                text("""
-                    INSERT INTO documents 
-                    (content, embedding, source, embedding_model, embedding_version)
-                    VALUES (:content, CAST(:embedding AS vector), :source, :model, :version)
-                """),
-                {
-                    "content": chunk,
-                    "embedding": vec,
-                    "source": source,
-                    "model": EMBED_MODEL,
-                    "version": EMBED_VERSION
-                }
-            )
+        for i in range(0, len(chunks), batch_size):
+            batch = chunks[i:i+batch_size]
+            vectors = embed_batch(batch)
+
+            for chunk, vec in zip(batch, vectors):
+                conn.execute(
+                    text("""
+                        INSERT INTO documents 
+                        (content, embedding, source, embedding_model, embedding_version)
+                        VALUES (:content, CAST(:embedding AS vector), :source, :model, :version)
+                    """),
+                    {
+                        "content": chunk,
+                        "embedding": vec,
+                        "source": source,
+                        "model": EMBED_MODEL,
+                        "version": EMBED_VERSION
+                    }
+                )
 
 # -----------------------------
 # RETRIEVAL
@@ -218,7 +259,6 @@ def llm(prompt: str):
 def root():
     return {"status": "ok"}
 
-# DEBUG route to test retrieval without auth or LLM
 @app.post("/debug/retrieve")
 def debug(req: PromptRequest):
     return retrieve(req.prompt)
@@ -239,7 +279,6 @@ def login(req: LoginRequest):
 def ask(req: PromptRequest, user=Depends(verify_token)):
     docs = retrieve(req.prompt)
 
-    # 11-04-2026 - DEBUG / LEARNING LOGGING
     print("\n=== RETRIEVAL DEBUG ===")
     print(f"Query: {req.prompt}\n")
 

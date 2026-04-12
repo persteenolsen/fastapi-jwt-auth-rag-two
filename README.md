@@ -1,18 +1,8 @@
 # Python + FastAPI + JWT Auth + RAG + LLM + Groq
 
-A REST API that serves:
-
-- FastAPI
-
-- JWT Auth
-
-- a RAG Application using a LLP by Groq
-
-- Swagger / OpenAPI
-
 Last updated:
 
-- 11-04-2026
+- 12-04-2026
 
 Python Version:
 
@@ -48,80 +38,128 @@ If everything works fine, the FastAPI and Swagger documentation is now available
 
 - Use the Swagger for Login by the Credentials to get the JWT Access Token for Auth
 
-# JWT Authentication
+# FastAPI RAG System (JWT + pgvector + Hugging Face + Groq)
 
-- The token will expire after 60 minutes for testing and demo. Then a 401 status will happen
+A production-style **Retrieval-Augmented Generation (RAG)** system built with FastAPI.  
+It combines **JWT authentication, PostgreSQL vector search (pgvector), Hugging Face embeddings, and Groq LLMs** to answer questions based on ingested documents.
 
-# Deployment to Vercel
+---
 
-- Take a look at the file "vercel.json"
+# Features
 
-- Create a Project at Vercel from your repository at GitHub with the code of this FastAPI
+## Authentication
+- JWT-based authentication (HS256)
+- Protected endpoints using HTTP Bearer tokens
+- Environment-based login credentials
 
-- Create the envirement variables from .env at Vercel with Groq API Key and the Credentials for Auth
+---
 
-- Make a commit to your GitHub
+## RAG Pipeline
+- Ingests `.txt` files from URLs
+- Splits documents into **topic-based chunks**
+- Generates embeddings using Hugging Face
+- Stores vectors in PostgreSQL with `pgvector`
+- Retrieves semantically relevant context for queries
 
-- Go to Vercel and check that the build and deployment happened and your site is in Production
+---
 
-# Use of the App
+## Embeddings (Hugging Face)
+- Model: `sentence-transformers/all-MiniLM-L6-v2`
+- Hosted via Hugging Face Inference Router API
+- Produces 384-dimensional normalized vectors
+- Batch processing with retry support
 
-Login → get token
+---
 
-Call:
+## Vector Database (PostgreSQL + pgvector)
+- Stores:
+  - Document content
+  - Embeddings
+  - Source URL
+  - Embedding metadata
+  - Timestamp
 
-POST /api/add-txt-from-url
-{
-  "url": "https://www.w3.org/TR/PNG/iso_8859-1.txt"
-}
+- Uses:
+  - `VECTOR(384)` type
+  - `ivfflat` index for fast similarity search
+  - cosine distance operator (`<->`)
 
-POST /api/ask
-{
-  "prompt": "What is this document about?"
-}
+---
 
-# This RAG App is for Demo and learning:
+## Semantic Retrieval
+- Converts queries into embeddings
+- Finds top-k most similar document chunks
+- Returns relevant context for LLM generation
 
-Big picture (important insight)
+---
 
-This App with the fake embeddings shows the full pipeline:
+## LLM (Groq)
+- Model: `llama-3.1-8b-instant`
+- Generates answers based on retrieved context
+- Uses structured prompting for grounded responses
 
-ingestion → chunking → embedding → vector DB → similarity search → context → LLM
+---
 
-That is the entire RAG abstraction. Everything else (rerankers, hybrid search, better embeddings) is just refinement.
+## Question Answering API
+### `/ask`
+- JWT protected endpoint
+- Retrieves relevant context
+- Sends prompt + context to LLM
+- Returns final answer + source references
 
-Phase 1 - This Demo for learning has:
+---
 
-- fake embeddings
+## Document Ingestion
+### `/ingest`
+- Accepts `.txt` file URLs
+- Downloads and cleans content
+- Splits into topic-based chunks
+- Processes embeddings in background
+- Stores results in PostgreSQL
 
-- pgvector
+---
 
-- full RAG pipeline
+## Debug Tools
+- `/debug/retrieve` → test vector search without LLM
+- Console logs retrieval results for inspection
 
-- Vercel deployment
+---
 
-# Improvements for a production ready App
+## Background Processing
+- Uses FastAPI `BackgroundTasks`
+- Non-blocking ingestion pipeline
+- Handles embedding + DB insertion asynchronously
 
-Phase 2 - For a future next step:
+---
 
-- real embeddings (MiniLM or API)
+## Text Processing
+- Fetches `.txt` files from URLs
+- Validates content type
+- Cleans and normalizes text input
 
-- better chunking
+---
 
-- better retrieval evaluation
+## Database Initialization
+On startup:
+- Creates `pgvector` extension
+- Creates `documents` table
+- Builds vector similarity index (`ivfflat`)
 
-Phase 3 - For a future next step:
+---
 
-- reranking
+# Architecture Overview
 
-- hybrid search
-
-- caching
-
-- observability
-
-Phase 4 - For a future next step:
-
-- Saving the password in a PostgreSQL as hashed valued - encrypted
-
-- Splitting the code of the app.py into folders ready for scale
+```text
+User
+  ↓
+/ask (JWT Protected)
+  ↓
+Query Embedding (Hugging Face)
+  ↓
+pgvector Similarity Search
+  ↓
+Top-K Context Chunks
+  ↓
+Groq LLM (LLaMA 3.1)
+  ↓
+Final Answer + Sources
