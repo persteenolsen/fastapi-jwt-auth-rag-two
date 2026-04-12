@@ -1,4 +1,4 @@
-# Python + FastAPI + JWT Auth + RAG + LLM + Groq
+# Python + FastAPI + JWT Auth + RAG + LLM + Groq + Hugging Face
 
 Last updated:
 
