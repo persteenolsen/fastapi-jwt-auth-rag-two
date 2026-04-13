@@ -13,6 +13,17 @@ import datetime
 import httpx
 import asyncio
 
+# 13-04-2026 - Updated code with better chunking, debug output for retrieval, 
+# and a new endpoint for ingesting .txt files from URLs. 
+# The ingest endpoint is protected by JWT auth and processes the text in the 
+# background to avoid blocking the main thread.
+
+#-----------------------------
+# FUTURE IMPROVEMENTS
+# Future impprovements could be splitting the code into multiple files and folders for better 
+# organization, and adding more robust error handling and logging.
+#-----------------------------
+
 # -----------------------------
 # ENV
 # -----------------------------
@@ -35,8 +46,8 @@ if not HF_TOKEN:
 # APP
 # -----------------------------
 app = FastAPI(
-    title="Python + FastApi + JWT Auth + LLM + RAG Pipeline",
-    description="12-04-2026 - FastAPI with JWT Auth serving an RAG Application powered by Groq + HuggingFace embeddings",
+    title="Python + FastApi + JWT Auth + RAG Pipeline + HF embeddings",
+    description="13-04-2026 - FastAPI with JWT Auth serving an RAG Application powered by Groq + HuggingFace embeddings",
     version="0.0.2",
     contact={
         "name": "Per Olsen",
@@ -141,15 +152,7 @@ def init_db():
 # -----------------------------
 # CHUNKING
 # -----------------------------
-#def chunk_txt(text: str, size=500, overlap=50):
-#    chunks = []
- #   i = 0
- #   while i < len(text):
-#        chunk = text[i:i+size]
-#        chunks.append(chunk.strip())
- #       i += size - overlap
- #   return chunks
-
+# 13-04-2026 - Simple chunking based on "Topic:" lines. Adjust as needed.
 def chunk_txt(text: str):
     chunks = []
     current_chunk = []
@@ -278,7 +281,8 @@ def login(req: LoginRequest):
 @app.post("/ask")
 def ask(req: PromptRequest, user=Depends(verify_token)):
     docs = retrieve(req.prompt)
-
+    
+    # 13-04-2026 - Debug output to verify retrieval quality before passing to LLM
     print("\n=== RETRIEVAL DEBUG ===")
     print(f"Query: {req.prompt}\n")
 
@@ -307,6 +311,7 @@ Question:
         "sources": list(set(d["source"] for d in docs))
     }
 
+# 13-04-2026 - Endpoint to ingest .txt files from URLs. Protected by JWT auth and processes in background.
 @app.post("/ingest")
 def ingest(req: URLRequest, background_tasks: BackgroundTasks, user=Depends(verify_token)):
     clean_text = fetch_txt_clean(req.url)

@@ -1,8 +1,8 @@
-# Python + FastAPI + JWT Auth + RAG + LLM + Groq + Hugging Face
+# Python + FastAPI + JWT Auth + RAG + Hugging Face embeddings
 
 Last updated:
 
-- 12-04-2026
+- 13-04-2026
 
 Python Version:
 
@@ -163,3 +163,5 @@ Top-K Context Chunks
 Groq LLM (LLaMA 3.1)
   ↓
 Final Answer + Sources
+
+Happy coding :-)
