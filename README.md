@@ -7,7 +7,7 @@ This project combines **secure JWT authentication**, **vector search with pgvect
 
 ## 📌 Project Info
 
-- **Last Updated:** 16-06-2026  
+- **Last Updated:** 18-06-2026  
 - **Python Version:** 3.12  
 
 ---
