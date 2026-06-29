@@ -31,7 +31,7 @@ This project combines **secure JWT authentication**, **vector search with pgvect
 ---
 
 ### 🤖 LLM Integration (Groq)
-- Model: `llama-3.1-8b-instant`  
+- Model: `openai/gpt-oss-20b`  
 - Context-aware answer generation  
 - Structured prompting for grounded responses  
 
