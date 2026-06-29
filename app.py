@@ -47,7 +47,7 @@ if not HF_TOKEN:
 # -----------------------------
 app = FastAPI(
     title="Python + FastApi + JWT Auth + RAG Pipeline + HF embeddings",
-    description="18-06-2026 - FastAPI with JWT Auth serving an RAG Application powered by Groq + HuggingFace embeddings",
+    description="29-06-2026 - FastAPI with JWT Auth serving an RAG Application powered by Groq + HuggingFace embeddings",
     version="0.0.2",
     contact={
         "name": "Per Olsen",
@@ -245,7 +245,13 @@ def retrieve(query: str, k: int = 5):
 # -----------------------------
 def llm(prompt: str):
     res = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        
+        # 29-06-2026 - Will soon be out of service at Groq
+        # model="llama-3.1-8b-instant",
+        
+        # 29-06-2026 - This is the solution for now :-)
+        model="openai/gpt-oss-20b",
+        
         messages=[
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": prompt}
