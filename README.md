@@ -7,7 +7,7 @@ This project combines **secure JWT authentication**, **vector search with pgvect
 
 ## 📌 Project Info
 
-- **Last Updated:** 29-06-2026  
+- **Last Updated:** 08-07-2026  
 - **Python Version:** 3.12  
 
 ---
@@ -126,7 +126,7 @@ pip install -r requirements.txt
 ## ▶️ Run the Application
 
 ```bash
-uvicorn main:app --reload
+uvicorn app:app --reload
 ```
 
 Once running:

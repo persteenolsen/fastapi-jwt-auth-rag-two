@@ -47,7 +47,7 @@ if not HF_TOKEN:
 # -----------------------------
 app = FastAPI(
     title="Python + FastApi + JWT Auth + RAG Pipeline + HF embeddings",
-    description="29-06-2026 - FastAPI with JWT Auth serving an RAG Application powered by Groq + HuggingFace embeddings",
+    description="08-07-2026 - FastAPI with JWT Auth serving an RAG Application powered by Groq + HuggingFace embeddings",
     version="0.0.2",
     contact={
         "name": "Per Olsen",
