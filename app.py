@@ -1,60 +1,21 @@
 # app.py
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-from pydantic import BaseModel
 from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
+
 from groq import Groq
 import numpy as np
-import jwt
-import os
 import requests
-import datetime
+
 import httpx
 import asyncio
-
-from fastapi import APIRouter
 
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 from auth import create_access_token, verify_token
 from models import LoginRequest, TokenResponse, PromptRequest, URLRequest
 
-from config import ACCESS_TOKEN_EXPIRE_MINUTES
-
-# 13-04-2026 - Updated code with better chunking, debug output for retrieval, 
-# and a new endpoint for ingesting .txt files from URLs. 
-# The ingest endpoint is protected by JWT auth and processes the text in the 
-# background to avoid blocking the main thread.
-
-#-----------------------------
-# FUTURE IMPROVEMENTS
-# Future impprovements could be splitting the code into multiple files and folders for better 
-# organization, and adding more robust error handling and logging.
-#-----------------------------
-
-# -----------------------------
-# ENV
-# -----------------------------
-load_dotenv()
-
-# Note: All the variables could be loaded from config.py
-DATABASE_URL = os.getenv("DATABASE_URL")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
-# Note: The below 3 variables could be loaded from config.py
-SECRET_KEY = os.getenv("SECRET_KEY")
-FAKE_USERNAME = os.getenv("FAKE_USERNAME")
-FAKE_PASSWORD = os.getenv("FAKE_PASSWORD")
-
-HF_TOKEN = os.getenv("HF_TOKEN")
-
-if not DATABASE_URL:
-    raise Exception("Missing DATABASE_URL")
-
-if not HF_TOKEN:
-    raise Exception("Missing HF_TOKEN")
+from config import GROQ_API_KEY, DATABASE_URL, HF_TOKEN
+from config import FAKE_USERNAME, FAKE_PASSWORD, ACCESS_TOKEN_EXPIRE_MINUTES
 
 # -----------------------------
 # APP
@@ -72,56 +33,42 @@ app = FastAPI(
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 client = Groq(api_key=GROQ_API_KEY)
 
+
 # ------------------------------
 # LOGIN FOR VUE SPA
 # ------------------------------
 @app.post("/login-spa", response_model=TokenResponse)
 def login_spa(request: LoginRequest):
 
-    if (
-        request.username != FAKE_USERNAME
-        or request.password != FAKE_PASSWORD
-    ):
+    if request.username != FAKE_USERNAME or request.password != FAKE_PASSWORD:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password"
+            detail="Invalid username or password",
         )
 
     access_token = create_access_token(
-        {"sub": request.username},
-        timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        {"sub": request.username}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
 
-    return TokenResponse(
-        access_token=access_token
-    )
+    return TokenResponse(access_token=access_token)
 
 
 # ------------------------------
 # OAUTH2 TOKEN FOR SWAGGER
 # ------------------------------
 @app.post("/token", response_model=TokenResponse)
-def get_token(
-    form: OAuth2PasswordRequestForm = Depends()
-):
+def get_token(form: OAuth2PasswordRequestForm = Depends()):
 
-    if (
-        form.username != FAKE_USERNAME
-        or form.password != FAKE_PASSWORD
-    ):
+    if form.username != FAKE_USERNAME or form.password != FAKE_PASSWORD:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
         )
 
     access_token = create_access_token(
-        {"sub": form.username},
-        timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        {"sub": form.username}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
 
-    return TokenResponse(
-        access_token=access_token
-    )
+    return TokenResponse(access_token=access_token)
 
 
 # -----------------------------
@@ -132,12 +79,14 @@ HF_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformer
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 EMBED_VERSION = 2
 
+
 # -----------------------------
 # UTILS
 # -----------------------------
 def normalize(vec):
     v = np.array(vec)
     return (v / np.linalg.norm(v)).tolist()
+
 
 async def hf_embed(texts: list[str]) -> list[list[float]]:
     async with httpx.AsyncClient(timeout=60.0) as client:
@@ -152,6 +101,7 @@ async def hf_embed(texts: list[str]) -> list[list[float]]:
         response.raise_for_status()
         return response.json()
 
+
 def embed_batch(texts: list[str]) -> list[list[float]]:
     """
     Sync wrapper around async HF call
@@ -163,6 +113,7 @@ def embed_batch(texts: list[str]) -> list[list[float]]:
         except Exception as e:
             if attempt == 2:
                 raise e
+
 
 # -----------------------------
 # DB INIT
@@ -190,6 +141,7 @@ def init_db():
             WITH (lists = 100);
         """))
 
+
 # -----------------------------
 # CHUNKING
 # -----------------------------
@@ -214,6 +166,7 @@ def chunk_txt(text: str):
 
     return chunks
 
+
 # -----------------------------
 # FETCH TEXT
 # -----------------------------
@@ -234,6 +187,7 @@ def fetch_txt_clean(url: str) -> str:
     lines = [line.strip() for line in res.text.splitlines() if line.strip()]
     return "\n".join(lines)
 
+
 # -----------------------------
 # BACKGROUND WORKER
 # -----------------------------
@@ -243,7 +197,7 @@ def process_chunks(chunks: list[str], source: str):
 
     with engine.begin() as conn:
         for i in range(0, len(chunks), batch_size):
-            batch = chunks[i:i+batch_size]
+            batch = chunks[i : i + batch_size]
             vectors = embed_batch(batch)
 
             for chunk, vec in zip(batch, vectors):
@@ -258,9 +212,10 @@ def process_chunks(chunks: list[str], source: str):
                         "embedding": vec,
                         "source": source,
                         "model": EMBED_MODEL,
-                        "version": EMBED_VERSION
-                    }
+                        "version": EMBED_VERSION,
+                    },
                 )
+
 
 # -----------------------------
 # RETRIEVAL
@@ -276,31 +231,30 @@ def retrieve(query: str, k: int = 5):
                 ORDER BY embedding <-> CAST(:embedding AS vector)
                 LIMIT :k
             """),
-            {"embedding": qvec, "k": k}
+            {"embedding": qvec, "k": k},
         ).fetchall()
 
     return [{"content": r[0], "source": r[1]} for r in rows]
+
 
 # -----------------------------
 # LLM
 # -----------------------------
 def llm(prompt: str):
     res = client.chat.completions.create(
-        
         # 29-06-2026 - Will soon be out of service at Groq
         # model="llama-3.1-8b-instant",
-        
         # 29-06-2026 - This is the solution for now :-)
         model="openai/gpt-oss-20b",
-        
         messages=[
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt}
+            {"role": "user", "content": prompt},
         ],
         temperature=0.7,
         max_tokens=800,
     )
     return res.choices[0].message.content
+
 
 # -----------------------------
 # ROUTES
@@ -308,6 +262,7 @@ def llm(prompt: str):
 @app.get("/")
 def root():
     return {"status": "ok"}
+
 
 @app.post("/debug/retrieve")
 def debug(req: PromptRequest):
@@ -317,7 +272,7 @@ def debug(req: PromptRequest):
 @app.post("/ask")
 def ask(req: PromptRequest, user=Depends(verify_token)):
     docs = retrieve(req.prompt)
-    
+
     # 13-04-2026 - Debug output to verify retrieval quality before passing to LLM
     print("\n=== RETRIEVAL DEBUG ===")
     print(f"Query: {req.prompt}\n")
@@ -327,10 +282,7 @@ def ask(req: PromptRequest, user=Depends(verify_token)):
         print(f"CONTENT: {d['content'][:200]}")
         print("------------------------")
 
-    context = "\n\n".join(
-        f"{d['content']} (source: {d['source']})"
-        for d in docs
-    )
+    context = "\n\n".join(f"{d['content']} (source: {d['source']})" for d in docs)
 
     prompt = f"""
 Context:
@@ -342,23 +294,21 @@ Question:
 
     answer = llm(prompt)
 
-    return {
-        "answer": answer,
-        "sources": list(set(d["source"] for d in docs))
-    }
+    return {"answer": answer, "sources": list(set(d["source"] for d in docs))}
+
 
 # 13-04-2026 - Endpoint to ingest .txt files from URLs. Protected by JWT auth and processes in background.
 @app.post("/ingest")
-def ingest(req: URLRequest, background_tasks: BackgroundTasks, user=Depends(verify_token)):
+def ingest(
+    req: URLRequest, background_tasks: BackgroundTasks, user=Depends(verify_token)
+):
     clean_text = fetch_txt_clean(req.url)
     chunks = chunk_txt(clean_text)
 
     background_tasks.add_task(process_chunks, chunks, req.url)
 
-    return {
-        "message": "Processing started",
-        "chunks": len(chunks)
-    }
+    return {"message": "Processing started", "chunks": len(chunks)}
+
 
 # -----------------------------
 # STARTUP

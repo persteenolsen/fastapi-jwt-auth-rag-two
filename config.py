@@ -3,6 +3,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Note: All the variables could be loaded from config.py
+DATABASE_URL = os.getenv("DATABASE_URL")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+if not DATABASE_URL:
+    raise Exception("Missing DATABASE_URL")
+
+if not HF_TOKEN:
+    raise Exception("Missing HF_TOKEN")
+
 SECRET_KEY = os.getenv("SECRET_KEY")
 FAKE_USERNAME = os.getenv("FAKE_USERNAME")
 FAKE_PASSWORD = os.getenv("FAKE_PASSWORD")
