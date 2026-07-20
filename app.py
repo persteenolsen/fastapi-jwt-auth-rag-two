@@ -1,6 +1,7 @@
 # app.py
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
 from pydantic import BaseModel
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
@@ -12,6 +13,15 @@ import requests
 import datetime
 import httpx
 import asyncio
+
+from fastapi import APIRouter
+
+from fastapi.security import OAuth2PasswordRequestForm
+from datetime import timedelta
+from auth import create_access_token, verify_token
+from models import LoginRequest, TokenResponse, PromptRequest, URLRequest
+
+from config import ACCESS_TOKEN_EXPIRE_MINUTES
 
 # 13-04-2026 - Updated code with better chunking, debug output for retrieval, 
 # and a new endpoint for ingesting .txt files from URLs. 
@@ -29,11 +39,15 @@ import asyncio
 # -----------------------------
 load_dotenv()
 
+# Note: All the variables could be loaded from config.py
 DATABASE_URL = os.getenv("DATABASE_URL")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# Note: The below 3 variables could be loaded from config.py
 SECRET_KEY = os.getenv("SECRET_KEY")
 FAKE_USERNAME = os.getenv("FAKE_USERNAME")
 FAKE_PASSWORD = os.getenv("FAKE_PASSWORD")
+
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 if not DATABASE_URL:
@@ -47,7 +61,7 @@ if not HF_TOKEN:
 # -----------------------------
 app = FastAPI(
     title="Python + FastApi + JWT Auth + RAG Pipeline + HF embeddings",
-    description="08-07-2026 - FastAPI with JWT Auth serving an RAG Application powered by Groq + HuggingFace embeddings",
+    description="20-07-2026 - FastAPI with JWT Auth serving an RAG Application powered by Groq + HuggingFace embeddings",
     version="0.0.2",
     contact={
         "name": "Per Olsen",
@@ -58,30 +72,57 @@ app = FastAPI(
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 client = Groq(api_key=GROQ_API_KEY)
 
-# -----------------------------
-# AUTH
-# -----------------------------
-bearer = HTTPBearer()
+# ------------------------------
+# LOGIN FOR VUE SPA
+# ------------------------------
+@app.post("/login-spa", response_model=TokenResponse)
+def login_spa(request: LoginRequest):
 
-def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer)):
-    try:
-        decoded = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=["HS256"])
-        return decoded["username"]
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    if (
+        request.username != FAKE_USERNAME
+        or request.password != FAKE_PASSWORD
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password"
+        )
 
-# -----------------------------
-# MODELS
-# -----------------------------
-class LoginRequest(BaseModel):
-    username: str
-    password: str
+    access_token = create_access_token(
+        {"sub": request.username},
+        timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
 
-class PromptRequest(BaseModel):
-    prompt: str
+    return TokenResponse(
+        access_token=access_token
+    )
 
-class URLRequest(BaseModel):
-    url: str
+
+# ------------------------------
+# OAUTH2 TOKEN FOR SWAGGER
+# ------------------------------
+@app.post("/token", response_model=TokenResponse)
+def get_token(
+    form: OAuth2PasswordRequestForm = Depends()
+):
+
+    if (
+        form.username != FAKE_USERNAME
+        or form.password != FAKE_PASSWORD
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
+
+    access_token = create_access_token(
+        {"sub": form.username},
+        timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+
+    return TokenResponse(
+        access_token=access_token
+    )
+
 
 # -----------------------------
 # EMBEDDING CONFIG
@@ -272,17 +313,6 @@ def root():
 def debug(req: PromptRequest):
     return retrieve(req.prompt)
 
-@app.post("/login")
-def login(req: LoginRequest):
-    if req.username == FAKE_USERNAME and req.password == FAKE_PASSWORD:
-        payload = {
-            "username": req.username,
-            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)
-        }
-        token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
-        return {"token": token}
-
-    raise HTTPException(status_code=401, detail="Bad credentials")
 
 @app.post("/ask")
 def ask(req: PromptRequest, user=Depends(verify_token)):

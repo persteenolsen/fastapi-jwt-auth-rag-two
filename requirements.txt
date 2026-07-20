@@ -8,3 +8,5 @@ PyJWT
 requests
 groq
 httpx
+
+python-multipart
