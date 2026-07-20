@@ -75,6 +75,34 @@ Optimizations:
 
 ---
 
+## 📁 Project Structure
+
+The application is organized into separate modules to improve maintainability while keeping the RAG pipeline logic centralized.
+
+Current structure:
+
+- `app.py`
+  - Creates the FastAPI application
+  - Registers API routes
+  - Handles startup events
+
+- `routes.py`
+  - Contains API endpoints
+  - Handles authentication, RAG queries, and document ingestion
+
+- `utils.py`
+  - Contains the core RAG functionality:
+    - Hugging Face embedding generation
+    - PostgreSQL + pgvector operations
+    - Document chunking
+    - Text cleaning and ingestion
+    - Vector retrieval
+    - Groq LLM communication
+
+The refactoring keeps the API layer separated from the RAG implementation while preserving the existing functionality.
+
+---
+
 ## 📡 API Endpoints
 
 | Method | Endpoint | Description |
