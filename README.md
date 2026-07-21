@@ -7,8 +7,29 @@ This project combines **OAuth2 Password Bearer authentication**, **JWT access to
 
 ## 📌 Project Info
 
-- **Last Updated:** 20-07-2026
+- **Last Updated:** 21-07-2026
 - **Python Version:** 3.12
+
+---
+
+## 🖥️ Frontend Client
+
+This repository contains the FastAPI backend for the RAG system.
+
+A separate Vue 3 SPA frontend is available as a client application and provides:
+
+- JWT authenticated user login
+- RAG question interface
+- AI-generated answer display
+- Retrieved source document display
+- Pinia state management
+- Production-ready Vite build
+
+The Vue frontend communicates with this API through the protected `/login-spa` and `/ask` endpoints.
+
+Frontend repository:
+
+- `vue-fastapi-jwt-auth-rag-two` - Vue 3 SPA client for interacting with this FastAPI RAG API
 
 ---
 
@@ -283,6 +304,101 @@ On application startup:
 
 ---
 
+# 💡 Use Cases and Applications
+
+This FastAPI RAG backend can be used as the foundation for AI-powered knowledge systems. By combining document retrieval, vector search, and LLM-generated responses, applications can provide accurate answers based on trusted information sources.
+
+## 💬 Chat Assistants
+
+- Build AI-powered assistants connected to private knowledge sources
+- Answer user questions using retrieved documents as context
+- Provide conversational access to internal or external information
+
+Examples:
+
+- Customer support assistants
+- Employee knowledge assistants
+- Product support chatbots
+- FAQ assistants
+
+## 📚 Document Question Answering
+
+- Query large document collections using natural language
+- Retrieve relevant information from documents
+- Generate answers with source references for transparency
+
+Examples:
+
+- Technical documentation assistants
+- Policy and procedure assistants
+- Research assistants
+- Document analysis systems
+
+## 🏢 Enterprise Knowledge Systems
+
+- Connect employees with company knowledge bases
+- Provide secure access to internal information
+- Reduce time spent searching across multiple systems
+
+Examples:
+
+- Internal company assistants
+- HR knowledge systems
+- IT support assistants
+- Training platforms
+
+## 🎓 Education and Learning Assistants
+
+- Create AI tutors based on educational content
+- Help users explore course material through questions
+- Provide explanations grounded in learning resources
+
+Examples:
+
+- Course assistants
+- Learning platforms
+- Training systems
+- Educational chatbots
+
+## 🛠️ Developer and Technical Assistants
+
+- Provide answers from technical documentation and repositories
+- Help developers understand frameworks, APIs, and systems
+- Improve access to technical knowledge
+
+Examples:
+
+- API documentation assistants
+- Programming assistants
+- DevOps assistants
+- Software architecture assistants
+
+## 🔎 Semantic Search and Knowledge Discovery
+
+- Replace traditional keyword search with AI-powered semantic search
+- Find relevant information based on meaning rather than exact wording
+- Combine retrieval with natural language explanations
+
+Examples:
+
+- Enterprise search engines
+- Research tools
+- Digital libraries
+- Knowledge management systems
+
+## 🔐 Secure AI Applications
+
+With FastAPI authentication, protected endpoints, and controlled access to knowledge sources, the backend can support secure AI applications.
+
+Examples:
+
+- Private company assistants
+- Customer portals
+- Role-based AI systems
+- Member-only knowledge platforms
+
+---
+
 ## 📄 License
 
 MIT License
@@ -291,11 +407,17 @@ MIT License
 
 ## 🙌 Final Notes
 
-This project is designed as a **clean, production-style RAG backend** and can be extended into:
+This project is designed as a **clean, production-style RAG backend** that can serve multiple clients.
+
+The FastAPI API can be extended into:
 
 - Chatbots
 - Internal knowledge systems
 - AI assistants
 - Document search platforms
+- Enterprise knowledge applications
+
+A Vue 3 SPA frontend is included as a separate client application, demonstrating how to securely integrate authentication, API communication, and RAG-based question answering into a modern web application.
 
 Happy coding :-)
+

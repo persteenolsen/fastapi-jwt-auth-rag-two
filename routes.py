@@ -38,22 +38,19 @@ router = APIRouter()
 # -----------------------------
 # LOGIN FOR VUE SPA
 # -----------------------------
-@router.post("/login-spa", response_model=TokenResponse)
-def login_spa(request: LoginRequest):
-
-    if request.username != FAKE_USERNAME or request.password != FAKE_PASSWORD:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
-        )
-
+@router.post("/login-spa")
+def login(form: OAuth2PasswordRequestForm = Depends()):
+    if form.username != FAKE_USERNAME or form.password != FAKE_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
     token = create_access_token(
-        {"sub": request.username},
+        {"sub": form.username},
         timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
 
-    return TokenResponse(access_token=token)
-
+    return {
+        "access_token": token, "token_type": "bearer", "username": FAKE_USERNAME
+    }
 
 # -----------------------------
 # OAUTH2 TOKEN FOR SWAGGER
