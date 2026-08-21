@@ -7,7 +7,7 @@ This project combines **OAuth2 Password Bearer authentication**, **JWT access to
 
 ## 📌 Project Info
 
-- **Last Updated:** 21-07-2026
+- **Last Updated:** 21-08-2026
 - **Python Version:** 3.12
 
 ---
