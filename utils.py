@@ -313,16 +313,7 @@ def process_chunks(chunks: list[str], source: str):
 # ============================================================
 # RETRIEVAL
 # ============================================================
-
-
-def retrieve(query: str, k: int = 5):
-    """
-    Find the most similar document chunks for a query.
-
-    Returns a list containing:
-    - document content
-    - original source URL
-    """
+def retrieve(query: str, k: int = 3, threshold: float = 1.10):
 
     query_vector = embed_batch([query])[0]
 
@@ -330,14 +321,19 @@ def retrieve(query: str, k: int = 5):
 
         rows = conn.execute(
             text("""
-            SELECT content, source
+            SELECT
+                content,
+                source,
+                embedding <-> CAST(:embedding AS vector) AS distance
             FROM documents
-            ORDER BY embedding <-> CAST(:embedding AS vector)
+            WHERE embedding <-> CAST(:embedding AS vector) <= :threshold
+            ORDER BY distance
             LIMIT :k
             """),
             {
                 "embedding": query_vector,
                 "k": k,
+                "threshold": threshold,
             },
         ).fetchall()
 
@@ -345,10 +341,10 @@ def retrieve(query: str, k: int = 5):
         {
             "content": row[0],
             "source": row[1],
+            "distance": float(row[2]),
         }
         for row in rows
     ]
-
 
 # ============================================================
 # LARGE LANGUAGE MODEL
