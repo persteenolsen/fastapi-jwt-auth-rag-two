@@ -98,6 +98,11 @@ async def hf_embed(texts: list[str]):
             },
             json={"inputs": texts},
         )
+        
+        # 08-10-2026 - Check for non-200 status codes and print the response for debugging
+        if response.status_code != 200:
+           print("HF STATUS:", response.status_code)
+           print("HF RESPONSE:", response.text)
 
         response.raise_for_status()
 
